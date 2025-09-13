@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book an Appointment to speak to Liso</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1f2937 0%, #0d0d0d 100%);
+            color: #f9fafb;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl w-full sm:max-w-lg transform transition-all duration-300 hover:scale-105">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2">Book an Appointment to speak to Liso</h1>
+            <p class="text-gray-400 text-base sm:text-lg">Your friends can use this form to book a time to talk.</p>
+        </div>
+
+        <form id="appointmentForm" class="space-y-6">
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-300">Full Name</label>
+                <input type="text" id="name" name="name" required
+                       class="mt-1 block w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition duration-200">
+            </div>
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-300">Email Address</label>
+                <input type="email" id="email" name="email" required
+                       class="mt-1 block w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition duration-200">
+            </div>
+            <div>
+                <label for="phone" class="block text-sm font-medium text-gray-300">Phone Number (Optional)</label>
+                <input type="tel" id="phone" name="phone"
+                       class="mt-1 block w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition duration-200">
+            </div>
+            <div>
+                <label for="message" class="block text-sm font-medium text-gray-300">Message (Optional)</label>
+                <textarea id="message" name="message" rows="3"
+                          class="mt-1 block w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition duration-200"></textarea>
+            </div>
+            <button type="submit"
+                    class="w-full py-3 px-6 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition duration-300 transform hover:scale-105">
+                Book My Appointment
+            </button>
+        </form>
+
+        <div id="statusMessage" class="hidden text-center mt-6 p-4 rounded-lg bg-green-500/20 text-green-300 font-medium">
+            Booking successful!
+        </div>
+
+        <div id="loadingIndicator" class="hidden text-center mt-6">
+            <div class="animate-spin inline-block w-8 h-8 border-4 border-t-4 border-white rounded-full border-solid border-t-transparent"></div>
+        </div>
+
+        <div id="adminContainer" class="hidden">
+            <div class="mt-8 pt-6 border-t border-gray-700">
+                <h2 class="text-2xl font-semibold mb-4 text-purple-400">My Bookings</h2>
+                <div class="text-sm text-gray-500 mb-4">Admin User ID: <span id="userIdDisplay" class="font-mono text-gray-400"></span></div>
+                <div id="bookingsList" class="space-y-4">
+                    <p class="text-gray-400">No bookings yet.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="adminLogin" class="mt-8 pt-6 border-t border-gray-700 text-center">
+            <button id="showAdminButton" class="text-sm text-gray-400 hover:text-white transition-colors duration-200">
+                View My Bookings (Admin)
+            </button>
+            <form id="adminForm" class="hidden mt-4 space-y-4">
+                <input type="password" id="adminKeyInput" placeholder="Enter secret key..."
+                       class="mt-1 block w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition duration-200">
+                <button type="submit" class="w-full py-2 px-4 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 transition duration-300">
+                    Unlock
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
+
+        // Firebase global variables are provided by the canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // --- Your Admin Settings ---
+        const SECRET_KEY = "Liso-Secret-2024"; // CHANGE THIS TO A UNIQUE, SECURE KEY
+        const ADMIN_USER_ID = "Liso-Admin-12345"; // All bookings will be stored under this ID
+        // -------------------------
+
+        // Setting Firebase logging for debugging
+        setLogLevel('debug');
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const form = document.getElementById('appointmentForm');
+        const statusMessage = document.getElementById('statusMessage');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const bookingsList = document.getElementById('bookingsList');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+
+        const adminContainer = document.getElementById('adminContainer');
+        const adminLogin = document.getElementById('adminLogin');
+        const showAdminButton = document.getElementById('showAdminButton');
+        const adminForm = document.getElementById('adminForm');
+        const adminKeyInput = document.getElementById('adminKeyInput');
+
+        let isUserAdmin = false;
+
+        // Function to display bookings in real-time
+        const setupRealtimeBookings = (currentUserId) => {
+            const bookingsPath = `/artifacts/${appId}/users/${currentUserId}/bookings`;
+            const bookingsCollection = collection(db, bookingsPath);
+            
+            const q = query(bookingsCollection, orderBy("timestamp", "desc"));
+
+            onSnapshot(q, (snapshot) => {
+                const bookings = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                renderBookings(bookings);
+            }, (error) => {
+                console.error("Error fetching bookings: ", error);
+            });
+        };
+
+        const renderBookings = (bookings) => {
+            if (bookings.length === 0) {
+                bookingsList.innerHTML = '<p class="text-gray-400">No bookings yet.</p>';
+                return;
+            }
+
+            bookingsList.innerHTML = '';
+            bookings.forEach(booking => {
+                const bookingElement = document.createElement('div');
+                bookingElement.className = 'bg-gray-700 p-4 rounded-lg shadow-sm';
+                const timestamp = booking.timestamp ? new Date(booking.timestamp.seconds * 1000).toLocaleString() : 'Just now';
+                
+                const emailHtml = booking.email ? `<p class="text-gray-400 text-sm">Email: <a href="mailto:${booking.email}" class="text-purple-400 hover:text-purple-300">${booking.email}</a></p>` : '';
+                const phoneHtml = booking.phone ? `<p class="text-gray-400 text-sm">Phone: <a href="tel:${booking.phone}" class="text-purple-400 hover:text-purple-300">${booking.phone}</a></p>` : '';
+                const messageHtml = booking.message ? `<p class="text-gray-300 mt-2 italic">"${booking.message}"</p>` : '';
+
+                bookingElement.innerHTML = `
+                    <p class="font-semibold text-gray-200">${booking.name}</p>
+                    ${emailHtml}
+                    ${phoneHtml}
+                    ${messageHtml}
+                    <p class="text-gray-500 text-xs mt-2">${timestamp}</p>
+                `;
+                bookingsList.appendChild(bookingElement);
+            });
+        };
+
+        // Handle form submission (remains the same for all users)
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loadingIndicator.classList.remove('hidden');
+            statusMessage.classList.add('hidden');
+
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const message = document.getElementById('message').value;
+
+            try {
+                // All bookings are saved under the single ADMIN_USER_ID
+                const bookingsPath = `/artifacts/${appId}/users/${ADMIN_USER_ID}/bookings`;
+                await addDoc(collection(db, bookingsPath), {
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    message: message,
+                    timestamp: serverTimestamp()
+                });
+
+                form.reset();
+                statusMessage.textContent = 'Booking successful! You can now close this page.';
+                statusMessage.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                statusMessage.textContent = 'Error saving booking. Please try again.';
+                statusMessage.classList.remove('hidden');
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        });
+
+        // --- New Admin Logic ---
+        const checkAdminStatus = () => {
+            if (localStorage.getItem('adminKey') === SECRET_KEY) {
+                isUserAdmin = true;
+                adminContainer.classList.remove('hidden');
+                adminLogin.classList.add('hidden');
+                userIdDisplay.textContent = ADMIN_USER_ID;
+                setupRealtimeBookings(ADMIN_USER_ID);
+            }
+        };
+
+        showAdminButton.addEventListener('click', () => {
+            showAdminButton.classList.add('hidden');
+            adminForm.classList.remove('hidden');
+        });
+
+        adminForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (adminKeyInput.value === SECRET_KEY) {
+                localStorage.setItem('adminKey', SECRET_KEY);
+                checkAdminStatus();
+            } else {
+                alert("Incorrect key. Try again.");
+                adminKeyInput.value = '';
+            }
+        });
+
+        // Check for admin status on page load
+        checkAdminStatus();
+    </script>
+</body>
+</html>
